@@ -1,4 +1,4 @@
-// Licensed to the Software Freedom Conservancy (SFC) under one
+﻿// Licensed to the Software Freedom Conservancy (SFC) under one
 // or more contributor license agreements.  See the NOTICE file
 // distributed with this work for additional information
 // regarding copyright ownership.  The SFC licenses this file
@@ -359,6 +359,13 @@ export default function seed(store, numberOfSuites = 0) {
   commentTest.createCommand(undefined, '', '', '')
   commentTest.createCommand(undefined, 'open', '/', '', 'also blah')
 
+  const contextMenuTest = store.createTestCase('context menu')
+  contextMenuTest.createCommand(undefined, 'open', '/context_menu')
+  contextMenuTest.createCommand(undefined, 'assertText', 'css=h3', 'Context Menu')
+  contextMenuTest.createCommand(undefined, 'context menu', 'id=hot-spot')
+  contextMenuTest.createCommand(undefined, 'assertConfirmation', 'You selected a context menu')
+  contextMenuTest.createCommand(undefined, 'webdriverChooseOkOnVisibleConfirmation', '')
+
   const framesTest = store.createTestCase('frames')
   framesTest.createCommand(undefined, 'open', '/nested_frames')
   framesTest.createCommand(undefined, 'selectFrame', 'index=0')
@@ -641,6 +648,7 @@ export default function seed(store, numberOfSuites = 0) {
   smokeSuite.addTestCase(checkTest)
   smokeSuite.addTestCase(clickTest)
   smokeSuite.addTestCase(clickAtTest)
+  smokeSuite.addTestCase(contextMenuTest)
   smokeSuite.addTestCase(executeScriptTest)
   smokeSuite.addTestCase(executeScriptArray)
   smokeSuite.addTestCase(executeScriptPrimitives)

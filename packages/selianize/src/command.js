@@ -314,6 +314,16 @@ async function emitDoubleClick(target) {
   )
 }
 
+async function emitContextMenu(target) {
+  return Promise.resolve(
+    `await driver.wait(until.elementLocated(${await LocationEmitter.emit(
+      target
+    )}), configuration.timeout);await driver.findElement(${await LocationEmitter.emit(
+      target
+    )}).then(element => {return driver.actions({bridge: true}).contextClick(element).perform();});`
+  )
+}
+
 async function emitDragAndDrop(dragged, dropzone) {
   return Promise.resolve(
     `await driver.wait(until.elementLocated(${await LocationEmitter.emit(
@@ -826,7 +836,7 @@ function emitSetWindowSize(size) {
     `try {
       await driver.manage().window().setRect({ width: ${width}, height: ${height} });
     } catch(error) {
-      console.log('Unable to resize window. Skipping.'); 
+      console.log('Unable to resize window. Skipping.');
     };`
   )
 }

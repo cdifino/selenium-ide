@@ -651,6 +651,7 @@ Recorder.addEventHandler(
       } else if (m.cmd === 'mouseOver') {
         record('mouseOver', locatorBuilders.buildAll(event.target), '')
       }
+      else record('context menu', locatorBuilders.buildAll(event.target), '')
       myPort.onMessage.removeListener(this)
     })
   },
