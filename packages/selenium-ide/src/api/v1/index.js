@@ -132,12 +132,46 @@ router.post('/control', (req, res) => {
   })
 })
 
-router.post('/close', res => {
+router.post('/close', (req, res) => {
+  controlledOnly(req).then(() =>{
+    // Not allow close if is not control mode.
+    if(!iState.isControlled) {
+      res(false)
+      return
+    }
+    const plugin = Manager.getPlugin(req.sender)
+    if (!plugin) throw new Error('Plugin is not registered')
+    if (!UiState.isSaved()) {
+      ModalState.showAlert({
+        title: 'Close project without saving',
+        description: `${
+          plugin.name
+        } is trying to close a project, are you sure you want to load this project and lose all unsaved changes?`,
+        confirmLabel: 'proceed',
+        cancelLabel: 'cancel',
+      }).then(result => {
+        if (result) {
+          window.close()
+          res(true)
+        }
+      })
+
+      res(false)
+    }
+    else
+    {
+      window.close()
+      res(true)
+    }
+  })
+})
+
+router.post('/_close', res => {
   window.close()
   res(true)
 })
 
-router.post('/connect', (req, res) => {
+router.post('/_connect', (req, res) => {
   if (req.controller.connectionId) {
     Manager.controller = req.controller
     UiState.startConnection()
@@ -163,7 +197,8 @@ router.post(
             } is trying to load a project, are you sure you want to load this project and lose all unsaved changes?`,
             confirmLabel: 'proceed',
             cancelLabel: 'cancel',
-          }).then(result => {
+          })
+          .then(result => {
             if (result) {
               loadJSProject(UiState.project, req.project)
               ModalState.completeWelcome()
