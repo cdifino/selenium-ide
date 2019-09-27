@@ -31,15 +31,45 @@ import { loadJSProject } from '../../neo/IO/filesystem'
 
 const router = new Router()
 
-const controlledOnly = apiFn => {
-  return (req, res) => {
-    if (
-      Manager.controller &&
-      Manager.controller.connectionId != req.connectionId
-    )
-      throw new Error('Selenium IDE is controlled by a different extension')
-    return apiFn(req, res)
+function checkControl(req) {
+  return Manager.controller && Manager.controller.connectionId != req.connectionId
+    ? Promise.reject()
+    : Promise.resolve()
+}
+
+function controlledOnly(req) {
+  return checkControl(req)
+    .catch(() => { throw new Error('Selenium IDE is controlled by a different extension') })
+}
+
+function tryOverrideControl(req)
+{
+  if (!req.connectionId) throw new Error('No Connection Id found')
+  if (!ModalState.welcomeState.completed) {
+    ModalState.hideWelcome()
   }
+  WindowSession.focusIDEWindow()
+  return ModalState.showAlert({
+    title: 'Assisted Control',
+    description: `${req.name} is trying to control Selenium IDE`,
+    confirmLabel: 'Restart and Allow access',
+    cancelLabel: 'Deny access',
+  })
+  .then(r => {
+    if (r) {
+      const plugin = {
+        id: req.sender,
+        name: req.name,
+        connectionId: req.connectionId,
+        version: req.version,
+        commands: req.commands,
+        dependencies: req.dependencies,
+        jest: req.jest,
+        exports: req.exports,
+      }
+      browser.runtime.sendMessage({ control: true, controller: plugin })
+    }
+  })
 }
 
 router.get('/health', (req, res) => {
@@ -48,76 +78,58 @@ router.get('/health', (req, res) => {
 
 router.post(
   '/register',
-  controlledOnly((req, res) => {
-    const plugin = {
-      id: req.sender,
-      name: req.name,
-      version: req.version,
-      commands: req.commands,
-      dependencies: req.dependencies,
-      jest: req.jest,
-      exports: req.exports,
-    }
-    Manager.registerPlugin(plugin)
-    res(true)
-  })
+  (req, res) => {
+    controlledOnly(req).then(() => {
+      const plugin = {
+        id: req.sender,
+        name: req.name,
+        version: req.version,
+        commands: req.commands,
+        dependencies: req.dependencies,
+        jest: req.jest,
+        exports: req.exports,
+      }
+      Manager.registerPlugin(plugin)
+      res(true)
+    });
+  }
 )
 
 router.post(
   '/log',
-  controlledOnly((req, res) => {
-    if (req.type === LogTypes.Error) {
-      logger.error(`${Manager.getPlugin(req.sender).name}: ${req.message}`)
-    } else if (req.type === LogTypes.Warning) {
-      logger.warn(`${Manager.getPlugin(req.sender).name}: ${req.message}`)
-    } else {
-      logger.log(`${Manager.getPlugin(req.sender).name}: ${req.message}`)
-    }
-    res(true)
-  })
+  (req, res) => {
+    controlledOnly(req).then(() => {
+      if (req.type === LogTypes.Error) {
+        logger.error(`${Manager.getPlugin(req.sender).name}: ${req.message}`)
+      } else if (req.type === LogTypes.Warning) {
+        logger.warn(`${Manager.getPlugin(req.sender).name}: ${req.message}`)
+      } else {
+        logger.log(`${Manager.getPlugin(req.sender).name}: ${req.message}`)
+      }
+      res(true)
+    })
+  }
 )
 
 router.get(
   '/project',
-  controlledOnly((_req, res) => {
-    res({ id: UiState.project.id, name: UiState.project.name })
-  })
+  (_req, res) => {
+    controlledOnly(_req).then(() => {
+      res({ id: UiState.project.id, name: UiState.project.name })
+    })
+  }
 )
 
 router.post('/control', (req, res) => {
-  if (
-    (Manager.controller &&
-      Manager.controller.connectionId != req.connectionId) ||
-    !Manager.controller
-  ) {
-    if (!req.connectionId) throw new Error('No Connection Id found')
-    if (!ModalState.welcomeState.completed) {
-      ModalState.hideWelcome()
-    }
-    WindowSession.focusIDEWindow()
-    ModalState.showAlert({
-      title: 'Assisted Control',
-      description: `${req.name} is trying to control Selenium IDE`,
-      confirmLabel: 'Restart and Allow access',
-      cancelLabel: 'Deny access',
-    }).then(r => {
-      if (r) {
-        const plugin = {
-          id: req.sender,
-          name: req.name,
-          connectionId: req.connectionId,
-          version: req.version,
-          commands: req.commands,
-          dependencies: req.dependencies,
-          jest: req.jest,
-          exports: req.exports,
-        }
-        browser.runtime.sendMessage({ control: true, controller: plugin })
-        res(true)
-      }
-    })
-  } else if (Manager.controller.connectionId == req.connectionId) res(true) //already connected
-  res(false)
+  checkControl(req).then(() =>{
+    // Already connected.
+    res(true)
+  })
+  .catch(() => {
+    tryOverrideControl(req)
+      .then(() => res(true))
+      .catch(() => res(false))
+  })
 })
 
 router.post('/close', res => {
@@ -136,36 +148,38 @@ router.post('/connect', (req, res) => {
 
 router.post(
   '/project',
-  controlledOnly((req, res) => {
-    const plugin = Manager.getPlugin(req.sender)
-    if (!plugin) throw new Error('Plugin is not registered')
-    if (!req.project) throw new Error('Porject field not defined')
-    if (req.project) {
-      if (!UiState.isSaved()) {
-        WindowSession.focusIDEWindow()
-        ModalState.showAlert({
-          title: 'Open project without saving',
-          description: `${
-            plugin.name
-          } is trying to load a project, are you sure you want to load this project and lose all unsaved changes?`,
-          confirmLabel: 'proceed',
-          cancelLabel: 'cancel',
-        }).then(result => {
-          if (result) {
-            loadJSProject(UiState.project, req.project)
-            ModalState.completeWelcome()
-            res(true)
-          }
-        })
-      } else {
-        WindowSession.focusIDEWindow()
-        loadJSProject(UiState.project, req.project)
-        ModalState.completeWelcome()
-        res(true)
+  (req, res) => {
+    controlledOnly(req).then(() => {
+      const plugin = Manager.getPlugin(req.sender)
+      if (!plugin) throw new Error('Plugin is not registered')
+      if (!req.project) throw new Error('Porject field not defined')
+      if (req.project) {
+        if (!UiState.isSaved()) {
+          WindowSession.focusIDEWindow()
+          ModalState.showAlert({
+            title: 'Open project without saving',
+            description: `${
+              plugin.name
+            } is trying to load a project, are you sure you want to load this project and lose all unsaved changes?`,
+            confirmLabel: 'proceed',
+            cancelLabel: 'cancel',
+          }).then(result => {
+            if (result) {
+              loadJSProject(UiState.project, req.project)
+              ModalState.completeWelcome()
+              res(true)
+            }
+          })
+        } else {
+          WindowSession.focusIDEWindow()
+          loadJSProject(UiState.project, req.project)
+          ModalState.completeWelcome()
+          res(true)
+        }
       }
-    }
-    res(false)
-  })
+      res(false)
+    })
+  }
 )
 
 router.use('/playback', playbackRouter)
