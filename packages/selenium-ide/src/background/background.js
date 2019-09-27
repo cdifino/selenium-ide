@@ -199,10 +199,13 @@ function handleInternalMessage(message) {
       })
       .then(() => {
         openPanel({ windowId: 0 }).then(() => {
+          var payload = { ...message };
+          delete payload.restart;
+
           const newMessage = {
             uri: '/connect',
             verb: 'post',
-            payload: message,
+            payload: payload,
           }
           browser.runtime
             .sendMessage(newMessage)
