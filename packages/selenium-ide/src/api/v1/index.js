@@ -67,7 +67,7 @@ function tryOverrideControl(req)
         jest: req.jest,
         exports: req.exports,
       }
-      browser.runtime.sendMessage({ control: true, controller: plugin })
+      browser.runtime.sendMessage({ restart: true, controller: plugin })
     }
   })
 }
