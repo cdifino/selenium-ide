@@ -122,10 +122,21 @@ router.get(
 
 router.post('/control', (req, res) => {
   checkControl(req).then(() =>{
-    // Already connected.
-    res(true)
+    if(UiState.isControlled)
+    {
+      // Already in control mode with the same connection id.
+      res(true)
+    }
+    else
+    {
+      // Already in non-control mode.
+      tryOverrideControl(req)
+        .then(() => res(true))
+        .catch(() => res(false))
+    }
   })
   .catch(() => {
+    // Already in control mode but another connection come.
     tryOverrideControl(req)
       .then(() => res(true))
       .catch(() => res(false))
@@ -135,7 +146,7 @@ router.post('/control', (req, res) => {
 router.post('/close', (req, res) => {
   controlledOnly(req).then(() =>{
     // Not allow close if is not control mode.
-    if(!iState.isControlled) {
+    if(!UiState.isControlled) {
       res(false)
       return
     }
