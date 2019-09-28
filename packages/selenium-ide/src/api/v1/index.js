@@ -31,20 +31,42 @@ import { loadJSProject } from '../../neo/IO/filesystem'
 
 const router = new Router()
 
+const errors = {
+  cannotAccessInControlMode: {
+    errorCode: 'CannotAccessInControlMode',
+    error: 'Selenium IDE is controlled by a different extension.'
+  },
+  missingPlugin: {
+    errorCode: 'MissingPlugin',
+    error: 'Plugin is not registered'
+  },
+  missingConnectionId: {
+    errorCode: 'MissingConnectionId',
+    error: 'No connection Id specified'
+  },
+  missingProject: {
+    errorCode: 'MissingProject',
+    error: 'Plugin is not registered'
+  }
+}
+
 function checkControl(req) {
   return Manager.controller && Manager.controller.connectionId != req.connectionId
     ? Promise.reject()
     : Promise.resolve()
 }
 
-function controlledOnly(req) {
+function controlledOnly(req, res) {
   return checkControl(req)
-    .catch(() => { throw new Error('Selenium IDE is controlled by a different extension') })
+    .catch(() => {
+      res(errors.cannotAccessInControlMode)
+      return errors.cannotAccessInControlMode
+    })
 }
 
 function tryOverrideControl(req)
 {
-  if (!req.connectionId) throw new Error('No Connection Id found')
+  if (!req.connectionId) return
   if (!ModalState.welcomeState.completed) {
     ModalState.hideWelcome()
   }
@@ -79,7 +101,7 @@ router.get('/health', (req, res) => {
 router.post(
   '/register',
   (req, res) => {
-    controlledOnly(req).then(() => {
+    controlledOnly(req, res).then(() => {
       const plugin = {
         id: req.sender,
         name: req.name,
@@ -98,7 +120,7 @@ router.post(
 router.post(
   '/log',
   (req, res) => {
-    controlledOnly(req).then(() => {
+    controlledOnly(req, res).then(() => {
       if (req.type === LogTypes.Error) {
         logger.error(`${Manager.getPlugin(req.sender).name}: ${req.message}`)
       } else if (req.type === LogTypes.Warning) {
@@ -114,7 +136,7 @@ router.post(
 router.get(
   '/project',
   (_req, res) => {
-    controlledOnly(_req).then(() => {
+    controlledOnly(_req, res).then(() => {
       res({ id: UiState.project.id, name: UiState.project.name })
     })
   }
@@ -144,14 +166,13 @@ router.post('/control', (req, res) => {
 })
 
 router.post('/close', (req, res) => {
-  controlledOnly(req).then(() =>{
+  controlledOnly(req, res).then(() =>{
     // Not allow close if is not control mode.
     if(!UiState.isControlled) {
-      res(false)
-      return
+      return res(false)
     }
     const plugin = Manager.getPlugin(req.sender)
-    if (!plugin) throw new Error('Plugin is not registered')
+    if (!plugin) return res(errors.missingPlugin)
     if (!UiState.isSaved()) {
       ModalState.showAlert({
         title: 'Close project without saving',
@@ -187,17 +208,19 @@ router.post('/_connect', (req, res) => {
     Manager.controller = req.controller
     UiState.startConnection()
     Manager.registerPlugin(req.controller)
-    res(true)
-  } else throw new Error('No connection Id specified')
+    return res(true)
+  } else {
+    return res(errors.missingConnectionId)
+  }
 })
 
 router.post(
   '/project',
   (req, res) => {
-    controlledOnly(req).then(() => {
+    controlledOnly(req, res).then(() => {
       const plugin = Manager.getPlugin(req.sender)
-      if (!plugin) throw new Error('Plugin is not registered')
-      if (!req.project) throw new Error('Porject field not defined')
+      if (!plugin) return res(errors.missingPlugin)
+      if (!req.project) return res(errors.missingProject)
       if (req.project) {
         if (!UiState.isSaved()) {
           WindowSession.focusIDEWindow()
