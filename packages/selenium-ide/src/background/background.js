@@ -230,7 +230,7 @@ browser.runtime.onMessageExternal.addListener(
     let payload = message.payload
 
     payload.sender = sender.id
-    if (message.uri.startsWith('/private')) {
+    if (message.uri.startsWith('/private/')) {
       return sendResponse(false)
     }
     browser.runtime
