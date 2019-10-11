@@ -85,7 +85,6 @@ function sendSaveProjectEvent(project) {
     },
   }
   browser.runtime.sendMessage(Manager.controller.id, saveMessage)
-  return Promise.resolve()
 }
 
 function downloadProject(project) {
@@ -96,7 +95,7 @@ function downloadProject(project) {
     }
     if (UiState.isControlled) {
       //If in control mode, send the project in a message and skip downloading
-      return sendSaveProjectEvent(project)
+      sendSaveProjectEvent(project)
     } else {
       browser.downloads.download({
         filename: sanitizeProjectName(project.name) + '.side',
