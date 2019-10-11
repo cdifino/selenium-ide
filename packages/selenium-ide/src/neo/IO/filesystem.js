@@ -73,6 +73,7 @@ export function loadAsText(blob) {
 export function saveProject(_project) {
   const project = _project.toJS()
   if (UiState.isControlled) {
+    //If in control mode, send the project in a message and skip downloading
     const saveMessage = {
       action: 'event',
       event: 'saveProject',
@@ -82,6 +83,7 @@ export function saveProject(_project) {
     }
     browser.runtime.sendMessage(Manager.controller.id, saveMessage)
   } else {
+    //In normal mode download the project
     downloadProject(project)
   }
   UiState.saved()

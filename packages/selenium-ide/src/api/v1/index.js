@@ -171,6 +171,7 @@ router.post('/close', (req, res) => {
   })
 })
 
+//Using '/private/' as a prefix for internal APIs
 router.post('/private/close', res => {
   window.close()
   res(true)
