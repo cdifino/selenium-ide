@@ -171,12 +171,12 @@ router.post('/close', (req, res) => {
   })
 })
 
-router.post('/private/close', res => {
+router.post('/privateClose', res => {
   window.close()
   res(true)
 })
 
-router.post('/private/connect', (req, res) => {
+router.post('/privateConnect', (req, res) => {
   if (req.controller && req.controller.id) {
     Manager.controller = req.controller
     UiState.startConnection()

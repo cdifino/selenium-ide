@@ -189,7 +189,7 @@ function handleInternalMessage(message) {
 
     browser.runtime
       .sendMessage({
-        uri: '/private/close',
+        uri: '/privateClose',
         verb: 'post',
         payload: null,
       })
@@ -199,7 +199,7 @@ function handleInternalMessage(message) {
           delete payload.restart
 
           const newMessage = {
-            uri: '/private/connect',
+            uri: '/privateConnect',
             verb: 'post',
             payload: payload,
           }
@@ -230,10 +230,7 @@ browser.runtime.onMessageExternal.addListener(
     let payload = message.payload
 
     payload.sender = sender.id
-    if (
-      message.uri === '/private/connect' ||
-      message.uri === '/private/close'
-    ) {
+    if (message.uri === '/privateConnect' || message.uri === '/privateClose') {
       return sendResponse(false)
     }
     browser.runtime
@@ -243,7 +240,7 @@ browser.runtime.onMessageExternal.addListener(
         if (message.uri == '/control' && message.verb == 'post') {
           return openPanel({ windowId: 0 }).then(() => {
             const newMessage = {
-              uri: '/private/connect',
+              uri: '/privateConnect',
               verb: 'post',
               payload: {
                 controller: {
