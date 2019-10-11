@@ -72,7 +72,18 @@ export function loadAsText(blob) {
 
 export function saveProject(_project) {
   const project = _project.toJS()
-  downloadProject(project)
+  if (UiState.isControlled) {
+    const saveMessage = {
+      action: 'event',
+      event: 'saveProject',
+      options: {
+        project,
+      },
+    }
+    browser.runtime.sendMessage(Manager.controller.id, saveMessage)
+  } else {
+    downloadProject(project)
+  }
   UiState.saved()
 }
 
@@ -82,17 +93,15 @@ function downloadProject(project) {
       project.snapshot = snapshot
       Object.assign(project, Manager.emitDependencies())
     }
-    return UiState.isControlled
-      ? Promise.resolve()
-      : browser.downloads.download({
-          filename: sanitizeProjectName(project.name) + '.side',
-          url: createBlob(
-            'application/json',
-            beautify(JSON.stringify(project), { indent_size: 2 })
-          ),
-          saveAs: true,
-          conflictAction: 'overwrite',
-        })
+    browser.downloads.download({
+      filename: sanitizeProjectName(project.name) + '.side',
+      url: createBlob(
+        'application/json',
+        beautify(JSON.stringify(project), { indent_size: 2 })
+      ),
+      saveAs: true,
+      conflictAction: 'overwrite',
+    })
   })
 }
 
