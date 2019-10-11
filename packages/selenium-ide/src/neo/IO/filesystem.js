@@ -74,19 +74,23 @@ export function saveProject(_project) {
   const project = _project.toJS()
   if (UiState.isControlled) {
     //If in control mode, send the project in a message and skip downloading
-    const saveMessage = {
-      action: 'event',
-      event: 'saveProject',
-      options: {
-        project,
-      },
-    }
-    browser.runtime.sendMessage(Manager.controller.id, saveMessage)
+    sendProject(project)
   } else {
     //In normal mode download the project
     downloadProject(project)
   }
   UiState.saved()
+}
+
+function sendProject(project) {
+  const saveMessage = {
+    action: 'event',
+    event: 'saveProject',
+    options: {
+      project,
+    },
+  }
+  browser.runtime.sendMessage(Manager.controller.id, saveMessage)
 }
 
 function downloadProject(project) {
